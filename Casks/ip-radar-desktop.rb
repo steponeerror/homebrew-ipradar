@@ -1,8 +1,8 @@
 cask "ip-radar-desktop" do
-  version "0.1.9"
-  sha256 "9cf8868dfc1a724a34fd94cc26ef27ae1e2d4169bbb94c015d47a9feb4fc76e2"
+  version "0.1.11"
+  sha256 "f18e7eed209f17dc1fa58c30e10f54f17519202439f19766d752a2c439073aca"
 
-  url "https://github.com/steponeerror/ip-radar-desktop/releases/download/v0.1.9/IP.Radar.Desktop_0.1.9_aarch64.dmg"
+  url "https://github.com/steponeerror/ip-radar-desktop/releases/download/v0.1.11/IP.Radar.Desktop_0.1.11_aarch64.dmg"
   name "IP Radar Desktop"
   desc "Tauri 2 companion for ip-radar"
   homepage "https://github.com/steponeerror/ip-radar-desktop"
