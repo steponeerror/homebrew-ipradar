@@ -1,0 +1,70 @@
+name: Bump cask
+
+on:
+  workflow_dispatch:
+  schedule:
+    # daily 03:00 UTC
+    - cron: "0 3 * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bump
+  cancel-in-progress: false
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # releases/latest excludes drafts and prereleases (GitHub semantics),
+      # so this is already the latest stable release.
+      - name: Resolve latest release version and asset sha256
+        id: latest
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          tag="$(gh api repos/steponeerror/ip-radar-desktop/releases/latest --jq '.tag_name')"
+          version="${tag#v}"
+          url="https://github.com/steponeerror/ip-radar-desktop/releases/download/${tag}/IP.Radar.Desktop_${version}_aarch64.dmg"
+          sha256="$(curl -fsSL "$url" | shasum -a 256 | cut -d' ' -f1)"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "url=$url"    >> "$GITHUB_OUTPUT"
+          echo "sha256=$sha256" >> "$GITHUB_OUTPUT"
+
+      - name: Compare with current cask
+        id: compare
+        run: |
+          set -euo pipefail
+          current_version="$(sed -n 's/^[[:space:]]*version "\(.*\)"$/\1/p' Casks/ip-radar-desktop.rb)"
+          current_sha256="$(sed -n 's/^[[:space:]]*sha256 "\(.*\)"$/\1/p' Casks/ip-radar-desktop.rb)"
+          if [ "$current_version" = "${{ steps.latest.outputs.version }}" ] \
+             && [ "$current_sha256" = "${{ steps.latest.outputs.sha256 }}" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Update cask (version / url / sha256)
+        if: steps.compare.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          sed -i \
+            -e "s|^\([[:space:]]*version \).*|\1\"${{ steps.latest.outputs.version }}\"|" \
+            -e "s|^\([[:space:]]*sha256 \).*|\1\"${{ steps.latest.outputs.sha256 }}\"|" \
+            -e "s|^\([[:space:]]*url \).*|\1\"${{ steps.latest.outputs.url }}\"|" \
+            Casks/ip-radar-desktop.rb
+          cat Casks/ip-radar-desktop.rb
+
+      - name: Commit and push
+        if: steps.compare.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Casks/ip-radar-desktop.rb
+          git commit -m "bump ip-radar-desktop to ${{ steps.latest.outputs.version }}"
+          git push
